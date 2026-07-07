@@ -1,0 +1,39 @@
+name: Tap House style drift check
+
+# Reusable workflow: a consumer repo calls this to verify its committed
+# .clang-format / .clang-tidy / STYLE.md match the canonical TapHouse copies
+# at a pinned ref. Fails (with a diff) if any has drifted.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: TapHouse ref (tag/branch/SHA) to check against.
+        type: string
+        default: main
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consumer repo
+        uses: actions/checkout@v4
+
+      - name: Checkout TapHouse canonical configs
+        uses: actions/checkout@v4
+        with:
+          repository: tap/taphouse
+          ref: ${{ inputs.ref }}
+          path: .taphouse
+
+      - name: Compare against canonical
+        run: |
+          fail=0
+          for f in .clang-format .clang-tidy STYLE.md; do
+            if ! diff -q ".taphouse/$f" "$f" >/dev/null 2>&1; then
+              echo "::error file=$f::$f differs from TapHouse canonical (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh and commit."
+              diff -u ".taphouse/$f" "$f" || true
+              fail=1
+            fi
+          done
+          if [ "$fail" -eq 0 ]; then echo "All shared configs match TapHouse@${{ inputs.ref }}."; fi
+          exit $fail
