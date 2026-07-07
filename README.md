@@ -33,9 +33,10 @@ subdirectory where the tools can't find them.
    on: [push, pull_request]
    jobs:
      taphouse-drift:
-       uses: tap/taphouse/.github/workflows/drift-check.yml@v1
+       uses: tap/taphouse/.github/workflows/drift-check.yml@main
        with:
-         ref: v1   # pin to a TapHouse tag; bump deliberately
+         ref: main   # recommended: create a v1 tag and pin to it (@v1 / ref: v1)
+                     # so consumers only update deliberately
    ```
 
 ## Updating the rules
