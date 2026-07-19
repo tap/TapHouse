@@ -28,7 +28,7 @@ jobs:
       - name: Compare against canonical
         run: |
           fail=0
-          for f in .clang-format .clang-tidy STYLE.md; do
+          for f in .clang-format .clang-tidy STYLE.md .pre-commit-config.yaml; do
             if ! diff -q ".taphouse/$f" "$f" >/dev/null 2>&1; then
               echo "::error file=$f::$f differs from TapHouse canonical (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh and commit."
               diff -u ".taphouse/$f" "$f" || true

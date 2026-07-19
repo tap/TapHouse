@@ -14,7 +14,7 @@ if [ ! -d "$target" ]; then
     exit 1
 fi
 
-for f in .clang-format .clang-tidy STYLE.md; do
+for f in .clang-format .clang-tidy STYLE.md .pre-commit-config.yaml; do
     cp "$here/$f" "$target/$f"
     echo "synced $f -> $target/$f"
 done
