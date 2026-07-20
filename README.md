@@ -3,7 +3,8 @@
 Canonical **Tap House Rules** — the shared C++ style for the Tap family of
 libraries (AmbiTap, SampleRateTap, OscTap, AmbiTap-Pd, AmbiTap-Max, …).
 
-This repo is the single source of truth for four files:
+This repo is the single source of truth for four root-level config files, plus
+one distributed helper script:
 
 | File | Enforces |
 |------|----------|
@@ -11,6 +12,7 @@ This repo is the single source of truth for four files:
 | `.clang-tidy` | Identifier naming (`m_` members, `k_` constants, snake_case types/functions, PascalCase template params) **and** mandatory braces |
 | `STYLE.md` | The human-readable rules and rationale |
 | `.pre-commit-config.yaml` | Local git-hook wiring: formats staged C/C++ **before** each commit, so the clang-format CI gate can't fail on something a developer could have caught locally |
+| `scripts/tidy.sh` | Local mirror of the CI **clang-tidy** gate (naming + mandatory braces) over a repo's own TUs. Distributed to C++ repos that run the clang-tidy gate; kept a single copy here so it can't fork per-repo (it was, briefly). Repo-agnostic — no project name is baked in. |
 
 `clang-format` and `clang-tidy` discover their config by walking **up** the
 directory tree from each source file, so those config files (and the

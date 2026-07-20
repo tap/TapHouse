@@ -1,8 +1,10 @@
 name: Tap House style drift check
 
 # Reusable workflow: a consumer repo calls this to verify its committed
-# .clang-format / .clang-tidy / STYLE.md match the canonical TapHouse copies
-# at a pinned ref. Fails (with a diff) if any has drifted.
+# .clang-format / .clang-tidy / STYLE.md / .pre-commit-config.yaml match the
+# canonical TapHouse copies at a pinned ref. Fails (with a diff) if any has
+# drifted. scripts/tidy.sh is additionally guarded, but only where the consumer
+# carries it (not every repo runs the clang-tidy gate).
 on:
   workflow_call:
     inputs:
@@ -35,5 +37,14 @@ jobs:
               fail=1
             fi
           done
+          # scripts/tidy.sh is guarded only when the consumer carries it — repos
+          # that do not run the clang-tidy gate are not required to ship it.
+          if [ -f "scripts/tidy.sh" ]; then
+            if ! diff -q ".taphouse/scripts/tidy.sh" "scripts/tidy.sh" >/dev/null 2>&1; then
+              echo "::error file=scripts/tidy.sh::scripts/tidy.sh differs from TapHouse canonical (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh and commit."
+              diff -u ".taphouse/scripts/tidy.sh" "scripts/tidy.sh" || true
+              fail=1
+            fi
+          fi
           if [ "$fail" -eq 0 ]; then echo "All shared configs match TapHouse@${{ inputs.ref }}."; fi
           exit $fail
