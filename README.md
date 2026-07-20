@@ -33,6 +33,31 @@ mirror rather than republishing clang-format as a TapHouse Python package — bo
 pull the same pinned wheel from PyPI, so the mirror is the same guarantee with
 less machinery; the pin still lives here, in the synced config.)
 
+## C++ namespaces
+
+The family shares one top-level namespace, `tap`, with a single sub-namespace
+per library (named for the library, not the domain). Nest components below that
+(`tap::dsp::real_fft`, `tap::dsp::detail`). Headers live under a matching path
+(`include/tap/dsp/fft.h`, included as `"tap/dsp/fft.h"`), and each library's
+CMake exports an alias to match (`tap::dsp`). Preprocessor macros use the
+upper-snake form of the namespace (`TAP_DSP_FFT_CMSIS`).
+
+| Repo | Namespace | CMake alias |
+|------|-----------|-------------|
+| DspTap | `tap::dsp` | `tap::dsp` |
+| AmbiTap | `tap::ambi` | `tap::ambi` |
+| SampleRateTap | `tap::samplerate` | `tap::samplerate` |
+| MuTap | `tap::mu` | `tap::mu` |
+| TapTools | `tap::tools` | `tap::tools` |
+| OscTap | `tap::osc` | `tap::osc` |
+
+DspTap already follows this. The others migrate as each is next touched (e.g.
+AmbiTap when it is wired to `tap::dsp`), aliasing the old namespace during
+transition — a family-wide sweep is not required. This convention is recorded
+here rather than in the drift-checked `STYLE.md` so it does not force a re-sync
+across every repo; promote it into `STYLE.md` (a tagged release) once every
+consumer has migrated and it can be enforced.
+
 ## Adopting the rules in a repo
 
 1. **Sync the configs** into the repo root:
