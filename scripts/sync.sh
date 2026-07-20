@@ -19,4 +19,12 @@ for f in .clang-format .clang-tidy STYLE.md .pre-commit-config.yaml; do
     echo "synced $f -> $target/$f"
 done
 
+# scripts/tidy.sh — the local mirror of the CI clang-tidy gate. Distributed to
+# any C++ repo that runs the clang-tidy gate; harmless to carry elsewhere. It is
+# drift-guarded only where present (see .github/workflows/drift-check.yml).
+mkdir -p "$target/scripts"
+cp "$here/scripts/tidy.sh" "$target/scripts/tidy.sh"
+chmod +x "$target/scripts/tidy.sh"
+echo "synced scripts/tidy.sh -> $target/scripts/tidy.sh"
+
 echo "Done. Review and commit the updated files in: $target"
