@@ -46,5 +46,16 @@ jobs:
               fail=1
             fi
           fi
+          # The Claude Code web SessionStart hook is guarded only when BOTH
+          # sides carry it: older pinned TapHouse refs predate the hook, and
+          # .claude/settings.json is deliberately unguarded (repos may extend
+          # their settings with repo-specific hooks).
+          if [ -f ".claude/hooks/session-start.sh" ] && [ -f ".taphouse/.claude/hooks/session-start.sh" ]; then
+            if ! diff -q ".taphouse/.claude/hooks/session-start.sh" ".claude/hooks/session-start.sh" >/dev/null 2>&1; then
+              echo "::error file=.claude/hooks/session-start.sh::session-start.sh differs from TapHouse canonical (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh and commit."
+              diff -u ".taphouse/.claude/hooks/session-start.sh" ".claude/hooks/session-start.sh" || true
+              fail=1
+            fi
+          fi
           if [ "$fail" -eq 0 ]; then echo "All shared configs match TapHouse@${{ inputs.ref }}."; fi
           exit $fail
