@@ -4,7 +4,7 @@ Canonical **Tap House Rules** — the shared C++ style for the Tap family of
 libraries (AmbiTap, SampleRateTap, OscTap, AmbiTap-Pd, AmbiTap-Max, …).
 
 This repo is the single source of truth for four root-level config files, plus
-one distributed helper script:
+two distributed helper scripts:
 
 | File | Enforces |
 |------|----------|
@@ -13,6 +13,7 @@ one distributed helper script:
 | `STYLE.md` | The human-readable rules and rationale |
 | `.pre-commit-config.yaml` | Local git-hook wiring: formats staged C/C++ **before** each commit, so the clang-format CI gate can't fail on something a developer could have caught locally |
 | `scripts/tidy.sh` | Local mirror of the CI **clang-tidy** gate (naming + mandatory braces) over a repo's own TUs. Distributed to C++ repos that run the clang-tidy gate; kept a single copy here so it can't fork per-repo (it was, briefly). Repo-agnostic — no project name is baked in. |
+| `.claude/hooks/session-start.sh` | Claude Code **web** sessions: fresh containers clone bare (no submodules, no pre-commit hook), so agent commits could bypass the local format layer entirely. The hook initializes submodules, installs the pinned pre-commit hook, and warms its clang-format at session start. Registered per-repo by `.claude/settings.json` (created by sync only if missing — repos may extend their settings, so only the hook *script* is drift-guarded). |
 
 `clang-format` and `clang-tidy` discover their config by walking **up** the
 directory tree from each source file, so those config files (and the
@@ -75,7 +76,9 @@ consumer has migrated and it can be enforced.
    ```
    Now `git commit` reformats staged C/C++ with TapHouse's pinned clang-format
    before the commit lands. First run fetches the pinned hook; thereafter it is
-   cached and offline.
+   cached and offline. (Claude Code **web** sessions do this automatically via
+   the synced SessionStart hook, once it's merged on the repo's default
+   branch — no per-clone step there.)
 
 3. **Run the same hook in CI** instead of a hand-installed clang-format, so the
    version can never skew from local:

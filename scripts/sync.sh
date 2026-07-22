@@ -27,4 +27,19 @@ cp "$here/scripts/tidy.sh" "$target/scripts/tidy.sh"
 chmod +x "$target/scripts/tidy.sh"
 echo "synced scripts/tidy.sh -> $target/scripts/tidy.sh"
 
+# Claude Code web SessionStart hook — initializes submodules and installs the
+# pinned pre-commit hook in fresh web-session containers, so the clang-format
+# gate can never fail on code a local clone would have formatted at commit
+# time. The hook script is canonical (drift-guarded where present); the
+# .claude/settings.json registration is created only if missing, because repos
+# may legitimately extend their settings with repo-specific hooks.
+mkdir -p "$target/.claude/hooks"
+cp "$here/.claude/hooks/session-start.sh" "$target/.claude/hooks/session-start.sh"
+chmod +x "$target/.claude/hooks/session-start.sh"
+echo "synced .claude/hooks/session-start.sh -> $target/.claude/hooks/session-start.sh"
+if [ ! -f "$target/.claude/settings.json" ]; then
+    cp "$here/.claude/settings.json" "$target/.claude/settings.json"
+    echo "created $target/.claude/settings.json (registers the hook; repo-specific settings merge there)"
+fi
+
 echo "Done. Review and commit the updated files in: $target"
