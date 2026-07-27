@@ -42,4 +42,16 @@ if [ ! -f "$target/.claude/settings.json" ]; then
     echo "created $target/.claude/settings.json (registers the hook; repo-specific settings merge there)"
 fi
 
+# Pull-request template — the family's shared review prompts (verification
+# provenance, contract changes, submodule pin flow). Created only if missing and
+# deliberately NOT drift-guarded: it is prose for humans, not a machine-enforced
+# config, and repos legitimately tailor it (the Max/Pd packages, OscTap's
+# documented exceptions). Guarding it would fail CI on a repo that improved its
+# own copy.
+mkdir -p "$target/.github"
+if [ ! -f "$target/.github/pull_request_template.md" ]; then
+    cp "$here/.github/pull_request_template.md" "$target/.github/pull_request_template.md"
+    echo "created $target/.github/pull_request_template.md (tailor freely; not drift-guarded)"
+fi
+
 echo "Done. Review and commit the updated files in: $target"

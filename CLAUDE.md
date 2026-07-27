@@ -20,8 +20,10 @@ anything.
   `scripts/sync.sh`, and (if it should be guarded) a comparison in `drift-check.yml`. Files that
   not every consumer carries — `scripts/tidy.sh`, `.claude/hooks/session-start.sh` — are guarded
   *conditionally* (only when present; the hook additionally only when the pinned TapHouse ref
-  carries it, so older pins don't break). `.claude/settings.json` is deliberately unguarded and
-  synced only-if-missing: repos may extend their settings with repo-specific hooks.
+  carries it, so older pins don't break). `.claude/settings.json` and
+  `.github/pull_request_template.md` are deliberately unguarded and synced only-if-missing: repos
+  may extend their settings with repo-specific hooks, and the PR template is prose a repo may
+  tailor — guarding it would fail CI on a repo that improved its own copy.
 - **Two version knobs, both living here** (see README "Updating the rules"): the TapHouse tag
   (consumers pin it in their `style.yml` `ref:`) and the clang-format version (the mirror `rev:`
   inside `.pre-commit-config.yaml`). Tagging is a deliberate release act — bump consumer `ref:`s
