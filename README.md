@@ -120,6 +120,26 @@ drift-checked; each is a deliberate open item with a known fix.
   `BUILDSYSTEM_TARGETS` loop; it is not applied yet because PythonTap cannot be
   configured without its embedded Python runtime, whose installer is macOS/Windows
   only — so the change wants a machine that can actually build it.
+- **ctypes bridge module** — four libraries expose their C ABI to the notebooks
+  through a bridge (`ambitap_py.py`, `dsptap_py.py`, `ratiotap_py.py`,
+  `taptools_py.py`); MuTap and SampleRateTap do not. **Decided: leave both as
+  they are.**
+  - *MuTap needs no bridge.* Its ctypes boilerplate lives in exactly one place,
+    `tools/notebook/build_afc_demo.py` (one `CDLL`, 16 `argtypes`/`restype` lines);
+    the other generator has none. That file *generates and executes* its notebook
+    and its own docstring says the source lives there rather than in the `.ipynb`,
+    so a bridge would relocate code, not deduplicate it.
+  - *SampleRateTap has real duplication but closing it costs more than it saves.*
+    Three notebooks (`asrc_demo`, `asrc_block_size_study`, `asrc_comparison`) each
+    carry the same 19-line loader inline — `_find_dso()`, the `srt_capi` build
+    call, `CDLL`, and six `srt_*` signature declarations — so ~57 lines would
+    collapse into one module. But the notebooks are committed *executed*, and
+    editing their code cells means re-running them: they embed 12 figures between
+    them, and `asrc_comparison` measures against **libsamplerate and soxr**, whose
+    output is the evidence. Re-executing anywhere but the author's machine would
+    replace measured comparative numbers, and re-render every figure, for a
+    cosmetic gain. Revisit only when one of those notebooks is being re-executed
+    for a substantive reason anyway — then fold the bridge into the same change.
 
 ## Adopting the rules in a repo
 
