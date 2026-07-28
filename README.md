@@ -44,21 +44,82 @@ per library (named for the library, not the domain). Nest components below that
 CMake exports an alias to match (`tap::dsp`). Preprocessor macros use the
 upper-snake form of the namespace (`TAP_DSP_FFT_CMSIS`).
 
-| Repo | Namespace | CMake alias |
-|------|-----------|-------------|
-| DspTap | `tap::dsp` | `tap::dsp` |
-| AmbiTap | `tap::ambi` | `tap::ambi` |
-| SampleRateTap | `tap::samplerate` | `tap::samplerate` |
-| MuTap | `tap::mu` | `tap::mu` |
-| TapTools | `tap::tools` | `tap::tools` |
-| OscTap | `tap::osc` | `tap::osc` |
+The three columns are independent, and they have migrated at different rates —
+the table records the target, and the "Header path" column is the one still
+lagging, because changing it is a breaking change for every consumer.
 
-DspTap already follows this. The others migrate as each is next touched (e.g.
-AmbiTap when it is wired to `tap::dsp`), aliasing the old namespace during
-transition — a family-wide sweep is not required. This convention is recorded
-here rather than in the drift-checked `STYLE.md` so it does not force a re-sync
-across every repo; promote it into `STYLE.md` (a tagged release) once every
-consumer has migrated and it can be enforced.
+| Repo | Namespace | CMake alias | Header path |
+|------|-----------|-------------|-------------|
+| DspTap | `tap::dsp` | `tap::dsp` | `tap/dsp/` ✅ |
+| RatioTap | `tap::ratio` | `tap::ratio` | `tap/ratio/` ✅ |
+| AmbiTap | `tap::ambi` | `tap::ambi` | `ambitap/` |
+| SampleRateTap | `tap::samplerate` | `tap::samplerate` | `srt/` |
+| MuTap | `tap::mu` | `tap::mu` | `mutap/` |
+| TapTools | `tap::tools` | `tap::tools` | `taptools/` |
+| OscTap | `tap::osc` | `tap::osc` | `osctap/` |
+
+**Namespaces and CMake aliases are done everywhere.** Every library above
+exports its `tap::<library>` alias. Where a repo predates the convention it
+*also* keeps its older alias spelling (`AmbiTap::ambitap`, `MuTap::MuTap`,
+`SampleRateTap::SampleRateTap`, `TapTools::taptools`, bare `oscpack`) so existing
+consumers keep working — the `tap::` form is additive, and is what new code
+should use. Note the aliases are build-tree targets: a repo whose install rules
+export a config package still exports under its own namespace, so `find_package`
+consumers see the older spelling until that is migrated too.
+
+**Header paths still vary**, and deliberately: renaming `include/mutap/x.h` to
+`include/tap/mu/x.h` breaks every `#include` in every consumer, so each repo
+migrates when it is next touched for other reasons, keeping a forwarding header
+during transition. `SampleRateTap` is the odd one out twice over — `srt/` is an
+abbreviation that matches neither its repo name nor its `tap::samplerate`
+namespace.
+
+This convention is recorded here rather than in the drift-checked `STYLE.md` so
+it does not force a re-sync across every repo; promote it into `STYLE.md` (a
+tagged release) once the header paths have migrated too and the whole thing can
+be enforced.
+
+Repos absent from the table are not libraries: `TapTools-Max`, `AmbiTap-Max`,
+`MuTap-Max`, `AmbiTap-Pd` and `PythonTap` are host packages (Max/MSP or Pure
+Data), whose C++ is wrapper glue over one of the libraries above rather than a
+namespace of its own.
+
+## Known divergences across the family
+
+Written down so they are decided rather than rediscovered. None of these is
+drift-checked; each is a deliberate open item with a known fix.
+
+- **CMake option prefixes** — five forms: `TAP_DSP_*`, `TAP_RATIO_*`,
+  `AMBITAP_*`, `MUTAP_*`, `SRT_*`, `TAPTOOLS_*`. Cosmetic, and renaming an option
+  breaks that repo's own CI invocations and scripts, so nothing here is worth
+  churning on its own. The upper-snake-of-the-namespace form (`TAP_DSP_`,
+  `TAP_RATIO_`) is the target; adopt it in a repo already being reworked.
+- **Install / export rules** — only AmbiTap and TapTools generate install rules
+  and a config package. DspTap, MuTap, RatioTap and SampleRateTap generate none.
+  This is defensible: all four are consumed as git submodules via
+  `add_subdirectory`, so nothing installs them today, and speculative install
+  rules are dead CMake that rots. Add them the first time a repo actually needs
+  `find_package` support.
+- **Test framework** — TapTools uses Catch2 (`SCENARIO`-style, one binary);
+  every other library uses GoogleTest (`TYPED_TEST_SUITE` batteries). This is a
+  real difference in kind, not an accident, and converting either direction would
+  discard working tests. Left as is.
+- **GoogleTest version** — AmbiTap pins v1.15.2, the other four v1.14.0. All five
+  now fetch by `GIT_REPOSITORY` + commit pin (AmbiTap previously used a release
+  *tarball*, the one mechanism a proxied build environment blocks). Unifying the
+  version is a separate, deliberate call.
+- **C ABI export decoration** — every library ships a `tools/capi` C ABI, and CI
+  now compiles it in all of them, but only DspTap's headers carry
+  `__declspec(dllexport)`. The others therefore build the C ABI on Linux/macOS
+  legs only: an MSVC build would link a DLL exporting nothing, which would pass
+  CI without gating anything. Give the ABI an export macro and flip those legs on
+  in the same change.
+- **C++ standard in host packages** — TapTools-Max, AmbiTap-Max, MuTap-Max and
+  AmbiTap-Pd all force C++20 (Min otherwise pins C++17). PythonTap does not, so
+  its external and its unit test build at C++17. The fix is TapTools-Max's
+  `BUILDSYSTEM_TARGETS` loop; it is not applied yet because PythonTap cannot be
+  configured without its embedded Python runtime, whose installer is macOS/Windows
+  only — so the change wants a machine that can actually build it.
 
 ## Adopting the rules in a repo
 
