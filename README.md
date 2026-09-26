@@ -57,13 +57,14 @@ lagging, because changing it is a breaking change for every consumer.
 | MuTap | `tap::mu` | `tap::mu` | `mutap/` |
 | TapTools | `tap::tools` | `tap::tools` | `taptools/` |
 | OscTap | `tap::osc` | `tap::osc` | `osctap/` |
+| PythonTap | `tap::python` | `tap::python` | `tap/python/` ✅ |
 
 **Namespaces and CMake aliases are done everywhere.** Every library above
 exports its `tap::<library>` alias. Where a repo predates the convention it
 *also* keeps its older alias spelling (`AmbiTap::ambitap`, `MuTap::MuTap`,
-`SampleRateTap::SampleRateTap`, `TapTools::taptools`, bare `oscpack`) so existing
-consumers keep working — the `tap::` form is additive, and is what new code
-should use. Note the aliases are build-tree targets: a repo whose install rules
+`SampleRateTap::SampleRateTap`, `TapTools::taptools`, bare `oscpack`,
+`tap::python_core`) so existing consumers keep working — the `tap::` form is
+additive, and is what new code should use. Note the aliases are build-tree targets: a repo whose install rules
 export a config package still exports under its own namespace, so `find_package`
 consumers see the older spelling until that is migrated too.
 
@@ -80,9 +81,11 @@ tagged release) once the header paths have migrated too and the whole thing can
 be enforced.
 
 Repos absent from the table are not libraries: `TapTools-Max`, `AmbiTap-Max`,
-`MuTap-Max`, `AmbiTap-Pd` and `PythonTap` are host packages (Max/MSP or Pure
-Data), whose C++ is wrapper glue over one of the libraries above rather than a
-namespace of its own.
+`MuTap-Max` and `AmbiTap-Pd` are host packages (Max/MSP or Pure Data), whose C++
+is wrapper glue over one of the libraries above rather than a namespace of its
+own. `PythonTap` is both: its host-independent core (the embedded CPython layer,
+under `core/`) is the `tap::python` library in the table, and its Max external is
+glue over that core.
 
 ## Known divergences across the family
 
@@ -114,12 +117,10 @@ drift-checked; each is a deliberate open item with a known fix.
   legs only: an MSVC build would link a DLL exporting nothing, which would pass
   CI without gating anything. Give the ABI an export macro and flip those legs on
   in the same change.
-- **C++ standard in host packages** — TapTools-Max, AmbiTap-Max, MuTap-Max and
-  AmbiTap-Pd all force C++20 (Min otherwise pins C++17). PythonTap does not, so
-  its external and its unit test build at C++17. The fix is TapTools-Max's
-  `BUILDSYSTEM_TARGETS` loop; it is not applied yet because PythonTap cannot be
-  configured without its embedded Python runtime, whose installer is macOS/Windows
-  only — so the change wants a machine that can actually build it.
+- **C++ standard in host packages** — *resolved.* TapTools-Max, AmbiTap-Max,
+  MuTap-Max, AmbiTap-Pd and PythonTap all force C++20 on every external and test
+  target (Min otherwise pins C++17), PythonTap with TapTools-Max's
+  `BUILDSYSTEM_TARGETS` loop.
 - **ctypes bridge module** — four libraries expose their C ABI to the notebooks
   through a bridge (`ambitap_py.py`, `dsptap_py.py`, `ratiotap_py.py`,
   `taptools_py.py`); MuTap and SampleRateTap do not. **Decided: leave both as
