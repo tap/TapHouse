@@ -35,6 +35,9 @@ mirror rather than republishing clang-format as a TapHouse Python package — bo
 pull the same pinned wheel from PyPI, so the mirror is the same guarantee with
 less machinery; the pin still lives here, in the synced config.)
 
+The family's icons and palette live in [`brand/`](brand/README.md). They are
+not synced or drift-checked; a repo copies the icon files it needs.
+
 ## C++ namespaces
 
 The family shares one top-level namespace, `tap`, with a single sub-namespace
