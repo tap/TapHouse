@@ -9,10 +9,19 @@ Writes, per repo, into brand/icons/<Repo>/:
   <Repo>-light.svg   mark in piñon, tap in the repo accent, on adobe
   <Repo>-dark.svg    mark in cream, tap in the repo accent, on piñon
   <Repo>-ground.svg  cream mark on a tile filled with the repo accent
-and, when cairosvg is installed (pip install cairosvg), PNGs rendered from
-the ground version:
+and, when cairosvg is installed (pip install -r brand/requirements.txt), PNGs
+rendered from the ground version:
   <Repo>-16.png, -32.png, -180.png   favicons / touch icon
   <Repo>-avatar-512.png              full-bleed square (GitHub rounds it)
+  <Repo>-package.png                 Max package icon, 500x500 rounded tile;
+                                     only for libraries a package uses
+                                     (PACKAGES below)
+
+The PNG bytes depend on the renderer: the committed PNGs were rendered with
+cairosvg 2.9.1 (brand/requirements.txt) over libcairo 1.18.0. Consumers'
+package icons are drift-checked byte for byte against the committed files, so
+a re-render that changes an unchanged icon's bytes means every package must
+re-sync; render with the pinned versions.
 
 Run from anywhere:  python3 brand/make_icons.py
 """
@@ -138,6 +147,17 @@ REPOS = {
     "PythonTap": ("Juniper", "#4F6B3E", pythontap),
 }
 
+# Max package -> the library whose icon it ships as icon.png. Host packages use
+# their library's icon; PythonTap is its own library and package. Pd has no
+# package icon (deken shows none), so AmbiTap-Pd is absent.
+PACKAGES = {
+    "AmbiTap-Max": "AmbiTap",
+    "MuTap-Max": "MuTap",
+    "PythonTap": "PythonTap",
+    "TapTools-Max": "TapTools",
+}
+PACKAGE_PX = 500    # the size of min's template icon.png
+
 
 def svg(mark, bg, ink, acc, rx=RADIUS, edge=False, title=""):
     body = mark.replace(INK, ink).replace(ACC, acc)
@@ -175,6 +195,9 @@ def main():
             square = svg(mark, accent, ADOBE, ADOBE, rx=0).encode()
             cairosvg.svg2png(bytestring=square, write_to=os.path.join(d, f"{repo}-avatar-512.png"),
                              output_width=512, output_height=512)
+            if repo in PACKAGES.values():
+                cairosvg.svg2png(bytestring=ground, write_to=os.path.join(d, f"{repo}-package.png"),
+                                 output_width=PACKAGE_PX, output_height=PACKAGE_PX)
         print(f"{repo}: done")
 
 
