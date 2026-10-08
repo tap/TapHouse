@@ -1,16 +1,36 @@
 #!/usr/bin/env bash
 # Copy the canonical Tap House Rules configs into a target repo root.
 #
-# Usage:  scripts/sync.sh [TARGET_DIR]      (default: current directory)
+# Usage:  scripts/sync.sh [--icon LIBRARY] [TARGET_DIR]   (default: current directory)
+#
+#   --icon LIBRARY   also copy LIBRARY's package icon to TARGET_DIR/icon.png
+#                    (Max packages only; LIBRARY is the brand/icons/ folder,
+#                    e.g. TapTools for TapTools-Max — see brand/README.md)
 #
 # Run this from a TapHouse checkout. Commit the updated files in TARGET_DIR.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+icon=""
+if [ "${1:-}" = "--icon" ]; then
+    if [ -z "${2:-}" ]; then
+        echo "error: --icon needs a library name (e.g. --icon TapTools)" >&2
+        exit 1
+    fi
+    icon="$2"
+    shift 2
+fi
 target="${1:-.}"
 
 if [ ! -d "$target" ]; then
     echo "error: target directory '$target' does not exist" >&2
+    exit 1
+fi
+
+# Check the icon before copying anything, so a misspelled library leaves the
+# target untouched.
+if [ -n "$icon" ] && [ ! -f "$here/brand/icons/$icon/$icon-package.png" ]; then
+    echo "error: no package icon for '$icon' (brand/icons/$icon/$icon-package.png); see brand/README.md" >&2
     exit 1
 fi
 
@@ -52,6 +72,14 @@ mkdir -p "$target/.github"
 if [ ! -f "$target/.github/pull_request_template.md" ]; then
     cp "$here/.github/pull_request_template.md" "$target/.github/pull_request_template.md"
     echo "created $target/.github/pull_request_template.md (tailor freely; not drift-guarded)"
+fi
+
+# Package icon — a Max package's icon.png, the library's icon as rendered by
+# brand/make_icons.py. Opt-in: only packages carry one. Drift-guarded only when
+# the consumer passes package_icon to the drift check.
+if [ -n "$icon" ]; then
+    cp "$here/brand/icons/$icon/$icon-package.png" "$target/icon.png"
+    echo "synced brand/icons/$icon/$icon-package.png -> $target/icon.png"
 fi
 
 echo "Done. Review and commit the updated files in: $target"

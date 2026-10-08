@@ -4,7 +4,8 @@ name: Tap House style drift check
 # .clang-format / .clang-tidy / STYLE.md / .pre-commit-config.yaml match the
 # canonical TapHouse copies at a pinned ref. Fails (with a diff) if any has
 # drifted. scripts/tidy.sh is additionally guarded, but only where the consumer
-# carries it (not every repo runs the clang-tidy gate).
+# carries it (not every repo runs the clang-tidy gate). A Max package's icon.png
+# is guarded when the caller names its library in package_icon.
 on:
   workflow_call:
     inputs:
@@ -12,6 +13,14 @@ on:
         description: TapHouse ref (tag/branch/SHA) to check against.
         type: string
         default: main
+      package_icon:
+        description: >-
+          Library whose package icon this repo ships as icon.png (e.g. TapTools
+          for TapTools-Max). When set, icon.png must match
+          brand/icons/<library>/<library>-package.png byte for byte. Leave
+          unset in repos that are not Max packages.
+        type: string
+        default: ''
 
 jobs:
   drift:
@@ -28,6 +37,8 @@ jobs:
           path: .taphouse
 
       - name: Compare against canonical
+        env:
+          PACKAGE_ICON: ${{ inputs.package_icon }}
         run: |
           fail=0
           for f in .clang-format .clang-tidy STYLE.md .pre-commit-config.yaml; do
@@ -54,6 +65,23 @@ jobs:
             if ! diff -q ".taphouse/.claude/hooks/session-start.sh" ".claude/hooks/session-start.sh" >/dev/null 2>&1; then
               echo "::error file=.claude/hooks/session-start.sh::session-start.sh differs from TapHouse canonical (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh and commit."
               diff -u ".taphouse/.claude/hooks/session-start.sh" ".claude/hooks/session-start.sh" || true
+              fail=1
+            fi
+          fi
+          # The package icon is opt-in: only Max packages carry one, and the
+          # caller names the library it comes from. Compared by bytes (it is a
+          # PNG, so a diff says nothing).
+          if [ -n "$PACKAGE_ICON" ]; then
+            src=".taphouse/brand/icons/$PACKAGE_ICON/$PACKAGE_ICON-package.png"
+            if ! [[ "$PACKAGE_ICON" =~ ^[A-Za-z]+$ ]] || [ ! -f "$src" ]; then
+              echo "::error::TapHouse ref ${{ inputs.ref }} has no package icon for '$PACKAGE_ICON' (expected $src)."
+              fail=1
+            elif [ ! -f icon.png ]; then
+              echo "::error::icon.png is missing; package_icon is '$PACKAGE_ICON'. Re-run taphouse/scripts/sync.sh --icon $PACKAGE_ICON and commit."
+              fail=1
+            elif ! cmp -s "$src" icon.png; then
+              echo "::error file=icon.png::icon.png differs from TapHouse's $PACKAGE_ICON package icon (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh --icon $PACKAGE_ICON and commit."
+              sha256sum "$src" icon.png
               fail=1
             fi
           fi

@@ -18,6 +18,28 @@ no other, is what tells them apart.
 Host packages (`AmbiTap-Max`, `AmbiTap-Pd`, `MuTap-Max`, `TapTools-Max`) use
 their library's icon.
 
+## Package icons
+
+A Max package shows the `icon.png` at its root. Each package ships its
+library's ground icon there, rendered at 500×500 (the size of min's template
+icon) with the tile's rounded corners:
+
+| Package | Library | `icon.png` is |
+|---------|---------|---------------|
+| AmbiTap-Max | AmbiTap | `icons/AmbiTap/AmbiTap-package.png` |
+| MuTap-Max | MuTap | `icons/MuTap/MuTap-package.png` |
+| PythonTap | PythonTap | `icons/PythonTap/PythonTap-package.png` |
+| TapTools-Max | TapTools | `icons/TapTools/TapTools-package.png` |
+
+The map is `PACKAGES` in `make_icons.py`, which renders a package icon only for
+the libraries in it. AmbiTap-Pd has none: Pd's package manager (deken) shows no
+icon.
+
+Unlike the rest of `brand/`, the package icon is distributed and guarded. A
+package takes it with `scripts/sync.sh --icon <Library>`, and the drift check
+compares its `icon.png` byte for byte when the caller passes
+`package_icon: <Library>` (see the root README).
+
 ## Palette
 
 A New Mexico palette: adobe and piñon for the shared neutrals, and one
@@ -57,15 +79,23 @@ Each `icons/<Repo>/` holds:
 | `<Repo>-16.png`, `-32.png` | Favicons (ground) |
 | `<Repo>-180.png` | Apple touch icon (ground) |
 | `<Repo>-avatar-512.png` | Full-bleed square for GitHub; GitHub rounds it |
+| `<Repo>-package.png` | Max package `icon.png`, 500×500, rounded (ground); only for libraries a package uses |
 
 ## Regenerating
 
 The icons are drawn in code, so edit `make_icons.py` rather than the SVGs:
 
 ```sh
-pip install cairosvg        # only needed for the PNGs
+pip install -r brand/requirements.txt   # cairosvg, only needed for the PNGs
 python3 brand/make_icons.py
 ```
 
-None of this is synced to consumer repos or drift-checked; a repo that wants
-its icon copies the files it needs.
+The PNG bytes depend on the renderer: the committed ones come from cairosvg
+2.9.1 (pinned in `requirements.txt`) over libcairo 1.18.0. Because packages'
+icons are compared byte for byte, a re-render that changes the bytes of an
+icon whose drawing did not change would send every package back through
+`sync.sh` for nothing; render with those versions, and check that `git status`
+shows only the icons you meant to change.
+
+Other than the package icons, none of this is synced to consumer repos or
+drift-checked; a repo that wants its icon copies the files it needs.
