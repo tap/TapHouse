@@ -3,9 +3,11 @@
 #
 # Usage:  scripts/sync.sh [--icon LIBRARY] [TARGET_DIR]   (default: current directory)
 #
-#   --icon LIBRARY   also copy LIBRARY's package icon to TARGET_DIR/icon.png
-#                    (Max packages only; LIBRARY is the brand/icons/ folder,
-#                    e.g. TapTools for TapTools-Max — see brand/README.md)
+#   --icon LIBRARY   also copy the repo's icons: LIBRARY is the brand/icons/
+#                    folder whose mark it uses (e.g. TapTools for TapTools-Max;
+#                    see brand/README.md). scripts/icon-files.sh says which
+#                    files, from the repo's shape: the README header SVGs
+#                    always, a book's favicons, a Max package's icon.png.
 #
 # Run this from a TapHouse checkout. Commit the updated files in TARGET_DIR.
 set -euo pipefail
@@ -27,11 +29,11 @@ if [ ! -d "$target" ]; then
     exit 1
 fi
 
-# Check the icon before copying anything, so a misspelled library leaves the
+# Resolve the icons before copying anything, so a misspelled library leaves the
 # target untouched.
-if [ -n "$icon" ] && [ ! -f "$here/brand/icons/$icon/$icon-package.png" ]; then
-    echo "error: no package icon for '$icon' (brand/icons/$icon/$icon-package.png); see brand/README.md" >&2
-    exit 1
+icon_pairs=""
+if [ -n "$icon" ]; then
+    icon_pairs="$("$here/scripts/icon-files.sh" "$icon" "$target")"
 fi
 
 for f in .clang-format .clang-tidy STYLE.md .pre-commit-config.yaml; do
@@ -74,12 +76,15 @@ if [ ! -f "$target/.github/pull_request_template.md" ]; then
     echo "created $target/.github/pull_request_template.md (tailor freely; not drift-guarded)"
 fi
 
-# Package icon — a Max package's icon.png, the library's icon as rendered by
-# brand/make_icons.py. Opt-in: only packages carry one. Drift-guarded only when
-# the consumer passes package_icon to the drift check.
-if [ -n "$icon" ]; then
-    cp "$here/brand/icons/$icon/$icon-package.png" "$target/icon.png"
-    echo "synced brand/icons/$icon/$icon-package.png -> $target/icon.png"
+# Icons — the repo's mark from brand/, as rendered by brand/make_icons.py.
+# Opt-in (--icon), and drift-guarded only when the consumer names its library
+# in the drift check's icon input.
+if [ -n "$icon_pairs" ]; then
+    while read -r src dst; do
+        mkdir -p "$(dirname "$target/$dst")"
+        cp "$here/$src" "$target/$dst"
+        echo "synced $src -> $target/$dst"
+    done <<<"$icon_pairs"
 fi
 
 echo "Done. Review and commit the updated files in: $target"

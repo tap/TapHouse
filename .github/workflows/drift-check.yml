@@ -4,8 +4,8 @@ name: Tap House style drift check
 # .clang-format / .clang-tidy / STYLE.md / .pre-commit-config.yaml match the
 # canonical TapHouse copies at a pinned ref. Fails (with a diff) if any has
 # drifted. scripts/tidy.sh is additionally guarded, but only where the consumer
-# carries it (not every repo runs the clang-tidy gate). A Max package's icon.png
-# is guarded when the caller names its library in package_icon.
+# carries it (not every repo runs the clang-tidy gate). The repo's icons are
+# guarded when the caller names its library in icon.
 on:
   workflow_call:
     inputs:
@@ -13,12 +13,13 @@ on:
         description: TapHouse ref (tag/branch/SHA) to check against.
         type: string
         default: main
-      package_icon:
+      icon:
         description: >-
-          Library whose package icon this repo ships as icon.png (e.g. TapTools
-          for TapTools-Max). When set, icon.png must match
-          brand/icons/<library>/<library>-package.png byte for byte. Leave
-          unset in repos that are not Max packages.
+          Library whose mark this repo uses (e.g. TapTools for TapTools-Max).
+          When set, every icon file scripts/icon-files.sh names for this repo
+          (README header SVGs; a book's favicons; a Max package's icon.png)
+          must exist and match TapHouse's byte for byte. Leave unset in repos
+          without a mark.
         type: string
         default: ''
 
@@ -38,7 +39,7 @@ jobs:
 
       - name: Compare against canonical
         env:
-          PACKAGE_ICON: ${{ inputs.package_icon }}
+          ICON: ${{ inputs.icon }}
         run: |
           fail=0
           for f in .clang-format .clang-tidy STYLE.md .pre-commit-config.yaml; do
@@ -68,21 +69,29 @@ jobs:
               fail=1
             fi
           fi
-          # The package icon is opt-in: only Max packages carry one, and the
-          # caller names the library it comes from. Compared by bytes (it is a
-          # PNG, so a diff says nothing).
-          if [ -n "$PACKAGE_ICON" ]; then
-            src=".taphouse/brand/icons/$PACKAGE_ICON/$PACKAGE_ICON-package.png"
-            if ! [[ "$PACKAGE_ICON" =~ ^[A-Za-z]+$ ]] || [ ! -f "$src" ]; then
-              echo "::error::TapHouse ref ${{ inputs.ref }} has no package icon for '$PACKAGE_ICON' (expected $src)."
+          # Icons are opt-in: the caller names the library whose mark the repo
+          # uses, and scripts/icon-files.sh (at the pinned ref, the same rule
+          # sync.sh copies by) names the files from the repo's shape. Compared
+          # by bytes: PNGs and generated SVGs, so a diff says nothing useful.
+          if [ -n "$ICON" ]; then
+            fix="Re-run taphouse/scripts/sync.sh --icon $ICON and commit."
+            if [ ! -x .taphouse/scripts/icon-files.sh ]; then
+              echo "::error::TapHouse ref ${{ inputs.ref }} predates repo icons (no scripts/icon-files.sh); pin v6 or later, or drop the icon input."
               fail=1
-            elif [ ! -f icon.png ]; then
-              echo "::error::icon.png is missing; package_icon is '$PACKAGE_ICON'. Re-run taphouse/scripts/sync.sh --icon $PACKAGE_ICON and commit."
+            elif ! pairs="$(.taphouse/scripts/icon-files.sh "$ICON" . 2>&1)"; then
+              echo "::error::icon '$ICON' at TapHouse ref ${{ inputs.ref }}: $pairs"
               fail=1
-            elif ! cmp -s "$src" icon.png; then
-              echo "::error file=icon.png::icon.png differs from TapHouse's $PACKAGE_ICON package icon (ref ${{ inputs.ref }}). Re-run taphouse/scripts/sync.sh --icon $PACKAGE_ICON and commit."
-              sha256sum "$src" icon.png
-              fail=1
+            else
+              while read -r src dst; do
+                if [ ! -f "$dst" ]; then
+                  echo "::error::$dst is missing (icon is '$ICON'). $fix"
+                  fail=1
+                elif ! cmp -s ".taphouse/$src" "$dst"; then
+                  echo "::error file=$dst::$dst differs from TapHouse's $src (ref ${{ inputs.ref }}). $fix"
+                  sha256sum ".taphouse/$src" "$dst"
+                  fail=1
+                fi
+              done <<<"$pairs"
             fi
           fi
           if [ "$fail" -eq 0 ]; then echo "All shared configs match TapHouse@${{ inputs.ref }}."; fi

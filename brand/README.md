@@ -18,7 +18,48 @@ no other, is what tells them apart.
 Host packages (`AmbiTap-Max`, `AmbiTap-Pd`, `MuTap-Max`, `TapTools-Max`) use
 their library's icon.
 
-## Package icons
+## Icons in the repos
+
+Unlike the rest of `brand/`, a repo's own icons are distributed and guarded.
+`scripts/sync.sh --icon <Library>` copies them, and the drift check compares
+them byte for byte when the caller passes `icon: <Library>` (see the root
+README). `<Library>` is the mark the repo uses: its own, or for a host package,
+its library's. Which files a repo carries follows from its shape
+(`scripts/icon-files.sh` is the rule, for both sides):
+
+| Repo has | It carries | From |
+|----------|------------|------|
+| (every repo) | `.github/icon-light.svg`, `.github/icon-dark.svg` | `-light.svg`, `-dark.svg` |
+| `book/book.toml` (an mdBook) | `book/theme/favicon.svg`, `book/theme/favicon.png` | `-ground.svg`, `-32.png` |
+| `package-info.json.in` (a Max package) | `icon.png` | `-package.png` |
+
+| Repo | `<Library>` |
+|------|-------------|
+| AmbiTap, AmbiTap-Max, AmbiTap-Pd | AmbiTap |
+| MuTap, MuTap-Max | MuTap |
+| TapTools, TapTools-Max | TapTools |
+| SampleRateTap, OscTap, SoundFileTap, PythonTap | its own |
+
+DspTap and AvasTap have no mark yet; RatioTap, folded into SampleRateTap's
+`bridge`, gets none.
+
+### README header
+
+The README's title carries the mark, light or dark to follow the reader's
+GitHub theme. Replace the `# Name` line with:
+
+```html
+# <picture><source media="(prefers-color-scheme: dark)" srcset=".github/icon-dark.svg"><img src=".github/icon-light.svg" width="40" height="40" alt="" align="top"></picture> Name
+```
+
+### Book favicon
+
+mdBook takes `favicon.svg` and `favicon.png` from `book/theme/` in place of its
+own, and still uses its defaults for every other theme file, so the two files
+need no `book.toml` change. (Checked with mdBook v0.4.40, the version the books
+pin: the built site differs from one without them in the two favicons only.)
+
+### Package icons
 
 A Max package shows the `icon.png` at its root. Each package ships its
 library's ground icon there, rendered at 500×500 (the size of min's template
@@ -34,11 +75,6 @@ icon) with the tile's rounded corners:
 The map is `PACKAGES` in `make_icons.py`, which renders a package icon only for
 the libraries in it. AmbiTap-Pd has none: Pd's package manager (deken) shows no
 icon.
-
-Unlike the rest of `brand/`, the package icon is distributed and guarded. A
-package takes it with `scripts/sync.sh --icon <Library>`, and the drift check
-compares its `icon.png` byte for byte when the caller passes
-`package_icon: <Library>` (see the root README).
 
 ## Palette
 
@@ -91,11 +127,11 @@ python3 brand/make_icons.py
 ```
 
 The PNG bytes depend on the renderer: the committed ones come from cairosvg
-2.9.1 (pinned in `requirements.txt`) over libcairo 1.18.0. Because packages'
+2.9.1 (pinned in `requirements.txt`) over libcairo 1.18.0. Because repos'
 icons are compared byte for byte, a re-render that changes the bytes of an
-icon whose drawing did not change would send every package back through
+icon whose drawing did not change would send every repo back through
 `sync.sh` for nothing; render with those versions, and check that `git status`
 shows only the icons you meant to change.
 
-Other than the package icons, none of this is synced to consumer repos or
+Other than the files above, none of this is synced to consumer repos or
 drift-checked; a repo that wants its icon copies the files it needs.
