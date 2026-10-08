@@ -4,7 +4,7 @@ Canonical **Tap House Rules** — the shared C++ style for the Tap family of
 libraries (AmbiTap, SampleRateTap, OscTap, AmbiTap-Pd, AmbiTap-Max, …).
 
 This repo is the single source of truth for four root-level config files, plus
-two distributed helper scripts and each Max package's icon:
+two distributed helper scripts and each repo's icons:
 
 | File | Enforces |
 |------|----------|
@@ -15,7 +15,7 @@ two distributed helper scripts and each Max package's icon:
 | `scripts/tidy.sh` | Local mirror of the CI **clang-tidy** gate (naming + mandatory braces) over a repo's own TUs. Distributed to C++ repos that run the clang-tidy gate; kept a single copy here so it can't fork per-repo (it was, briefly). Repo-agnostic — no project name is baked in. |
 | `.claude/hooks/session-start.sh` | Claude Code **web** sessions: fresh containers clone bare (no submodules, no pre-commit hook), so agent commits could bypass the local format layer entirely. The hook initializes submodules, installs the pinned pre-commit hook, and warms its clang-format at session start. Registered per-repo by `.claude/settings.json` (created by sync only if missing — repos may extend their settings, so only the hook *script* is drift-guarded). |
 | `.github/pull_request_template.md` | The family's shared review prompts: what changed and why, **verification** (what was actually run versus what CI will gate, and the measured-not-remembered rule for performance claims), and a delete-what-does-not-apply list of the recurring cross-repo concerns — contract changes, submodule pin flow, notebook re-execution, package docs/help + universal binaries. Created by sync **only if missing** and deliberately **not** drift-guarded: it is prose for humans, and repos legitimately tailor it. |
-| `icon.png` (Max packages) | The package's icon in Max: its library's mark from [`brand/`](brand/README.md), rendered as `brand/icons/<Library>/<Library>-package.png`. Synced **only on request** (`sync.sh --icon <Library>`) and drift-guarded only where the caller names the library (`package_icon:`), since only the four Max packages carry one. Compared byte for byte. |
+| Icons: `.github/icon-{light,dark}.svg`, `book/theme/favicon.{svg,png}`, `icon.png` | The repo's mark from [`brand/`](brand/README.md): the README header in every repo, the favicon of a repo's mdBook, a Max package's icon in Max. Which of them a repo carries follows from its shape (`scripts/icon-files.sh`). Synced **only on request** (`sync.sh --icon <Library>`) and drift-guarded only where the caller names the library (`icon:`), since a repo needs a mark first. Compared byte for byte. |
 
 `clang-format` and `clang-tidy` discover their config by walking **up** the
 directory tree from each source file, so those config files (and the
@@ -37,8 +37,7 @@ pull the same pinned wheel from PyPI, so the mirror is the same guarantee with
 less machinery; the pin still lives here, in the synced config.)
 
 The family's icons and palette live in [`brand/`](brand/README.md). Apart from
-a Max package's `icon.png` (above), they are not synced or drift-checked; a repo
-copies the icon files it needs.
+each repo's own icons (above), they are not synced or drift-checked.
 
 ## C++ namespaces
 
@@ -155,10 +154,11 @@ drift-checked; each is a deliberate open item with a known fix.
    taphouse/scripts/sync.sh /path/to/your-repo
    ```
    Commit the resulting `.clang-format`, `.clang-tidy`, `STYLE.md`, and
-   `.pre-commit-config.yaml`. A Max package also takes its icon: add
-   `--icon <Library>` (the library whose mark it uses — `TapTools` for
-   TapTools-Max; the map is in [`brand/README.md`](brand/README.md#package-icons))
-   and commit `icon.png` too.
+   `.pre-commit-config.yaml`. A repo with a mark also takes its icons: add
+   `--icon <Library>` (the mark it uses — `TapTools` for TapTools-Max; the map
+   is in [`brand/README.md`](brand/README.md#icons-in-the-repos)), commit the
+   icon files it copies, and put the mark in the README's title (the snippet
+   is in the same section).
 
 2. **Enable the local hook** — once per clone:
    ```sh
@@ -188,7 +188,7 @@ drift-checked; each is a deliberate open item with a known fix.
        uses: tap/taphouse/.github/workflows/drift-check.yml@v3
        with:
          ref: v3   # pin to a tag so consumers update deliberately
-         # package_icon: TapTools   # Max packages only (from v6): guards icon.png
+         # icon: TapTools   # repos with a mark (from v6): guards the icon files
    ```
 
 ## Updating the rules
@@ -204,8 +204,8 @@ consumers through the sync:
   `.pre-commit-config.yaml` — bump it *here*, and `sync.sh` carries it to every
   consumer (no per-repo edit). One place, whole family.
 
-A changed package icon travels the same way: regenerate it with
-`brand/make_icons.py`, tag, then `sync.sh --icon <Library>` in each package that
+A changed icon travels the same way: regenerate it with
+`brand/make_icons.py`, tag, then `sync.sh --icon <Library>` in each repo that
 uses it.
 
 Pinning to a tag (not `main`) keeps consumers from updating unexpectedly.
