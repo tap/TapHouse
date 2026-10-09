@@ -1,0 +1,21 @@
+name: TapHouse self-tests
+
+# TapHouse's own checks (the drift check is a reusable workflow consumers call;
+# this one runs here). scripts/test-tidy.sh drives the distributed
+# scripts/tidy.sh with a fake clang-tidy on both runner shells: Linux bash 5
+# and macOS /bin/bash 3.2, the two the script meets in the family.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tidy-sh:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/test-tidy.sh
