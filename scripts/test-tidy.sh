@@ -16,6 +16,10 @@
 # below reproduces it (the old script fails that case and no other: a warning
 # on the LAST line is found only after printf has finished writing, so the
 # pipe never breaks). The fixed script passes every case.
+#
+# sweep-once-per-file, below, covers the no-argument sweep: each file in the
+# compile database checked once, however many compile commands it has (one
+# call per entry checked a file compiled n times n^2 times), on both shells.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,6 +39,12 @@ mkdir -p "$tmp/build" "$tmp/bin"
 echo '[]' >"$tmp/build/compile_commands.json"
 cat >"$tmp/bin/clang-tidy" <<'EOF'
 #!/usr/bin/env bash
+# FAKE_TIDY_LOG, when set, records the file each call was given (the last
+# argument: tidy.sh calls `clang-tidy -p BUILD FILE`).
+if [ -n "${FAKE_TIDY_LOG:-}" ]; then
+    for last in "$@"; do :; done
+    echo "$last" >>"$FAKE_TIDY_LOG"
+fi
 cat "$FAKE_TIDY_OUTPUT"
 EOF
 chmod +x "$tmp/bin/clang-tidy"
@@ -87,6 +97,37 @@ run_case large-warning-last  large-warning-last  1 "clang-tidy found violations"
 run_case small-warning       small-warning       1 "clang-tidy found violations" "$warning"
 run_case empty-clean         empty-clean         0 "clang-tidy clean."
 run_case large-clean         large-clean         0 "clang-tidy clean."
+
+# The sweep (no arguments): every project file in the database, each ONCE,
+# though the database lists a file once per compile command (a workload source
+# built under several -D). clang-tidy -p checks all of a file's commands in one
+# call, so one call per entry checked a file compiled n times n^2 times.
+# third_party/ and fetched deps (_deps) stay excluded. Runs the list builder
+# on macOS /bin/bash 3.2 as well, which has no mapfile.
+sweep="$tmp/sweep"
+mkdir -p "$sweep"
+printf '%s\n' '[' \
+    '{"directory": "/b", "file": "/src/bench/main.cpp", "command": "c++ -DWORKLOAD=0 -c /src/bench/main.cpp"},' \
+    '{"directory": "/b", "file": "/src/bench/main.cpp", "command": "c++ -DWORKLOAD=1 -c /src/bench/main.cpp"},' \
+    '{"directory": "/b", "file": "/src/lib.cpp", "command": "c++ -c /src/lib.cpp"},' \
+    '{"directory": "/b", "file": "/src/bench/main.cpp", "command": "c++ -DWORKLOAD=2 -c /src/bench/main.cpp"},' \
+    '{"directory": "/b", "file": "/src/third_party/vendored.cpp", "command": "c++ -c /src/third_party/vendored.cpp"},' \
+    '{"directory": "/b", "file": "/b/_deps/gtest/gtest.cc", "command": "c++ -c /b/_deps/gtest/gtest.cc"}' \
+    ']' >"$sweep/compile_commands.json"
+: >"$tmp/sweep-log"
+got=0
+FAKE_TIDY_OUTPUT="$tmp/empty-clean" FAKE_TIDY_LOG="$tmp/sweep-log" CLANG_TIDY="$tmp/bin/clang-tidy" \
+    TIDY_BUILD="$sweep" "$tidy" >"$tmp/stdout" 2>"$tmp/stderr" || got=$?
+want="$(printf '%s\n' /src/bench/main.cpp /src/lib.cpp)"
+if [ "$got" -ne 0 ] || ! grep -qF "over 2 file(s)" "$tmp/stdout" || [ "$(cat "$tmp/sweep-log")" != "$want" ]; then
+    echo "FAIL sweep-once-per-file: exit $got; files checked:"
+    sed 's/^/    /' "$tmp/sweep-log"
+    echo "---- stdout (tail) ----"; tail -n 3 "$tmp/stdout"
+    echo "---- stderr (tail) ----"; tail -n 3 "$tmp/stderr"
+    fail=1
+else
+    echo "ok   sweep-once-per-file (6 database entries -> 2 files, each checked once, exit 0)"
+fi
 
 if [ "$fail" -eq 0 ]; then
     echo "tidy.sh self-test passed."
